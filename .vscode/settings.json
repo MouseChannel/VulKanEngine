@@ -1,0 +1,85 @@
+{
+    "cSpell.words": [
+        "glfw",
+        "Swapchain"
+    ],
+    "glsl-linter.validatorPath": "D:\\SomeSoft\\vk\\Bin\\glslangValidator.exe",
+    "glsllint.languageSettings": {
+    
+        "javascript": {
+            "parser": "TSAST"
+        },
+        "javascriptreact": {
+            "parser": "TSAST"
+        },
+        "typescript": {
+            "parser": "TSAST"
+        },
+        "typescriptreact": {
+            "parser": "TSAST"
+        },
+        "elm": {
+            "parser": "REGEX",
+            "patternStart": "\\[glsl",
+            "patternEnd": "\\|\\]"
+        }
+    },
+    "glsl-linter.fileExtensions": {
+        ".fs.glsl": "frag",
+        ".fs": "frag",
+        ".frag":"frag",
+        ".vs.glsl": "vert",
+        ".vs": "vert",
+        ".vert":"vert",
+        ".tes.glsl": "tese",
+        ".tes": "tese",
+        ".tcs.glsl": "tesc",
+        ".tcs": "tesc",
+        ".gs.glsl": "geom",
+        ".gs": "geom",
+    },
+    // code runner
+    "code-runner.runInTerminal": true,
+    "code-runner.saveFileBeforeRun": true, // run code前保存
+    "code-runner.clearPreviousOutput": true, // 每次run code前清空属于code runner的终端消息，默认false
+  
+    "clangd.arguments": [
+
+                // 在后台自动分析文件（基于complie_commands)
+        "--background-index",
+        // 同时开启的任务数量
+        "-j=12",
+        // "--folding-ranges"
+        // 告诉clangd用那个clang进行编译，路径参考which clang++的路径
+        "--query-driver=/usr/bin/clang++",
+        // clang-tidy功能
+        "--clang-tidy",
+        "--clang-tidy-checks=performance-*,bugprone-*",
+        // 全局补全（会自动补充头文件）
+        "--all-scopes-completion",
+        // 更详细的补全内容
+        "--completion-style=detailed",
+        "--function-arg-placeholders",
+        // 补充头文件的形式
+        "--header-insertion=iwyu",
+        // pch优化的位置
+        "--pch-storage=memory",
+        
+    ],
+
+  "lldb.commandCompletions": true,
+  // LLDB 指针显示解引用内容
+  "lldb.dereferencePointers": true,
+  // LLDB 鼠标悬停在变量上时预览变量值
+  "lldb.evaluateForHovers": true,
+  // LLDB 监视表达式的默认类型
+  "lldb.launch.expressions": "simple",
+  // LLDB 不显示汇编代码
+  "lldb.showDisassembly": "never",
+  // LLDB 生成更详细的日志
+  "lldb.verboseLogging": true,
+ 
+ 
+ 
+    
+}
