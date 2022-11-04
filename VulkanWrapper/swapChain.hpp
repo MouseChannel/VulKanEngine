@@ -1,5 +1,6 @@
 #include "../base.h"
 #include "device.hpp"
+#include "image.hpp"
 #include "renderPass.hpp"
 #include "vulkan/vulkan_core.h"
 
@@ -19,16 +20,17 @@ private:
 
   VkFormat m_SwapChainFormat;
   VkExtent2D m_SwapChainExtent;
-
+  Device::Ptr m_Device{nullptr};
+  Window::Ptr m_Window{nullptr};
   uint32_t imageCount{0};
-  // 交换链中图像句柄
+ 
   std::vector<VkImage> m_SwapChainImages{};
   // image管理器
   std::vector<VkImageView> m_SwapChainImageViews{};
   std::vector<VkFramebuffer> m_SwapChainFrameBuffers{};
+  std::vector<Image::Ptr> m_DepthImages{};
+  std::vector<Image::Ptr> m_MutiSampleImages{};
 
-  Device::Ptr m_Device{nullptr};
-  Window::Ptr m_Window{nullptr};
   WindowSurface::Ptr m_Surface{nullptr};
   VkImageView CreateImageView(VkImage image, VkFormat format,
                               VkImageAspectFlags aspectFlags,
@@ -37,12 +39,14 @@ private:
 public:
   using Ptr = std::shared_ptr<SwapChain>;
   static Ptr Create(const Device::Ptr &device, const Window::Ptr &window,
-                    const WindowSurface::Ptr &surface) {
-    return std::make_shared<SwapChain>(device, window, surface);
+                    const WindowSurface::Ptr &surface,
+                    const CommandPool::Ptr &commandPool) {
+    return std::make_shared<SwapChain>(device, window, surface, commandPool);
   }
 
   SwapChain(const Device::Ptr &device, const Window::Ptr &window,
-            const WindowSurface::Ptr &surface);
+            const WindowSurface::Ptr &surface,
+            const CommandPool::Ptr &commandPool);
   ~SwapChain();
   void CreateFrameBuffers(const RenderPass::Ptr &renderPass);
   // 查看设备支持的格式
@@ -65,7 +69,8 @@ public:
 };
 
 SwapChain::SwapChain(const Device::Ptr &device, const Window::Ptr &window,
-                     const WindowSurface::Ptr &surface) {
+                     const WindowSurface::Ptr &surface,
+                     const CommandPool::Ptr &commandPool) {
   m_Device = device;
   m_Window = window;
   m_Surface = surface;
@@ -143,7 +148,47 @@ SwapChain::SwapChain(const Device::Ptr &device, const Window::Ptr &window,
     m_SwapChainImageViews[i] = CreateImageView(
         m_SwapChainImages[i], m_SwapChainFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
   }
-  // 创建framebuffer
+  // 生成深度图
+  m_DepthImages.resize(imageCount);
+
+  VkImageSubresourceRange region{};
+  region.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+  region.baseMipLevel = 0;
+  region.levelCount = 1;
+  region.baseArrayLayer = 0;
+  region.layerCount = 1;
+
+  for (int i = 0; i < imageCount; ++i) {
+    m_DepthImages[i] = Image::createDepthImage(
+        m_Device, m_SwapChainExtent.width, m_SwapChainExtent.height,
+        m_Device->getMaxUsableSampleCount());
+
+    m_DepthImages[i]->SetImageLayout(
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, region, commandPool);
+  }
+  // 生成采样图，最终采样后的图片是 swapchain自动生成的m_SwapChainImages
+  m_MutiSampleImages.resize(imageCount);
+
+  VkImageSubresourceRange regionMutiSample{};
+  regionMutiSample.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  regionMutiSample.baseMipLevel = 0;
+  regionMutiSample.levelCount = 1;
+  regionMutiSample.baseArrayLayer = 0;
+  regionMutiSample.layerCount = 1;
+
+  for (int i = 0; i < imageCount; ++i) {
+    m_MutiSampleImages[i] = Image::createRenderTargetImage(
+        m_Device, m_SwapChainExtent.width, m_SwapChainExtent.height,
+        m_SwapChainFormat);
+
+    m_MutiSampleImages[i]->SetImageLayout(
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, regionMutiSample,
+        commandPool);
+  }
 }
 VkImageView SwapChain::CreateImageView(VkImage image, VkFormat format,
                                        VkImageAspectFlags aspectFlags,
@@ -179,8 +224,10 @@ void SwapChain::CreateFrameBuffers(const RenderPass::Ptr &renderPass) {
   m_SwapChainFrameBuffers.resize(imageCount);
   for (int i = 0; i < imageCount; ++i) {
     // framebuffer 包括一帧所有的数据
-    // 包括多个 colorAttachMent 和一个 DepthStencilAttachMent
-    std::array<VkImageView, 1> attachments = {m_SwapChainImageViews[i]};
+    //数组中的顺序必须要与renderpass的顺序匹配
+    std::array<VkImageView, 3> attachments = {
+        m_SwapChainImageViews[i], m_MutiSampleImages[i]->GetImageView(),
+        m_DepthImages[i]->GetImageView()};
 
     VkFramebufferCreateInfo frameBufferCreateInfo{};
     frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

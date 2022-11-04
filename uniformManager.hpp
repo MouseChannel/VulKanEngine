@@ -74,7 +74,7 @@ namespace VK::Wrapper {
 		textureParam->mCount = 1;
 		textureParam->mDescriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		textureParam->mStage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		textureParam->mTexture = Texture::create(m_Device, commandPool, "./assets/dragonBall.jpg");
+		textureParam->mTexture = Texture::create(m_Device, commandPool, "D:\\cpp\\vk\\assets\\jqm.png");
 
 		m_UniformParams.push_back(textureParam);
 

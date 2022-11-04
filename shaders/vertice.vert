@@ -22,8 +22,8 @@ layout(binding = 1) uniform ObjectUniform{
  
 void main(){
   
-    gl_Position= vpUBO.m_ProjectionMatrix * vpUBO.m_ViewMatrix * objectUBO.mModelMatrix *  vec4(inPosition ,0.8);
-    outColor = inColor;
+    gl_Position= vpUBO.m_ProjectionMatrix * vpUBO.m_ViewMatrix * objectUBO.mModelMatrix *  vec4(inPosition ,1.0);
+    // outColor = inColor;
 	outUV = inUV;
 
  

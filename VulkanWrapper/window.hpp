@@ -1,4 +1,5 @@
 #include "../base.h"
+ 
 
 namespace VK::Wrapper {
 
@@ -18,8 +19,10 @@ public:
   ~Window();
   bool ShouldClose();
   void PollEvent();
+ 
   [[nodiscard]] auto GetWindow() const { return m_Window; }
   bool m_WindowResized{false};
+ 
   static void WindowResized(GLFWwindow *window, int width, int height);
 };
 
@@ -50,4 +53,6 @@ void Window::WindowResized(GLFWwindow *window, int width, int height) {
   auto pUserData = reinterpret_cast<Window *>(glfwGetWindowUserPointer(window));
   pUserData->m_WindowResized = true;
 }
+
+
 } // namespace VK::Wrapper

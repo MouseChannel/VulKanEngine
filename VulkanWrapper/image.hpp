@@ -201,10 +201,17 @@ void Image::SetImageLayout(VkImageLayout newLayout,
     imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     break;
     // 如果目标是：将格式转化为一个可读的纹理，那么被阻塞的必定是read操作
-    //如果该image作为texture，那么来源只能是：1.通过map从cpu端拷贝过来，2.通过stagingBuffer拷贝而来
+    // 如果该image作为texture，那么来源只能是：1.通过map从cpu端拷贝过来，2.通过stagingBuffer拷贝而来
   case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
     imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     break;
+  case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: {
+    imageMemoryBarrier.dstAccessMask =
+        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+  } break;
+  case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: {
+    imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  } break;
   default:
     break;
   }

@@ -5,67 +5,67 @@
 
 namespace VK::Wrapper {
 
-	class SubPass {
-	private:
-		VkSubpassDescription m_SubPassDescription{};
-		//AttachmentReference代表的是在RenderPassAttachments数组里面的下标
-		//该pass的输出
-		std::vector<VkAttachmentReference> m_ColorAttachmentReferences{};
-		//上pass的输出，即该pass的输入
-		std::vector<VkAttachmentReference> m_InputAttachmentReferences{};
-		VkAttachmentReference m_DepthStencilAttachmentReference{};
+class SubPass {
+private:
+  VkSubpassDescription m_SubPassDescription{};
+  // AttachmentReference代表的是在RenderPassAttachments数组里面的下标
+  // 该pass的输出
+  std::vector<VkAttachmentReference> m_ColorAttachmentReferences{};
+  // 上pass的输出，即该pass的输入
+  std::vector<VkAttachmentReference> m_InputAttachmentReferences{};
+  VkAttachmentReference m_DepthStencilAttachmentReference{};
+  VkAttachmentReference m_ResolvedAttachmentReference{};
 
-	public:
-		SubPass();
-		~SubPass();
-		void AddColorAttachmentReference(const VkAttachmentReference& ref);
+public:
+  SubPass();
+  ~SubPass();
+  void AddColorAttachmentReference(const VkAttachmentReference &ref) {
+    m_ColorAttachmentReferences.push_back(ref);
+  }
 
-		void AddInputAttachmentReference(const VkAttachmentReference& ref);
+  void AddInputAttachmentReference(const VkAttachmentReference &ref) {
+    m_InputAttachmentReferences.push_back(ref);
+  }
 
-		void SetDepthStencilAttachmentReference(const VkAttachmentReference& ref);
+  void SetDepthStencilAttachmentReference(const VkAttachmentReference &ref) {
+    m_DepthStencilAttachmentReference = ref;
+  }
 
-		void BuildSubPassDescription();
+  void BuildSubPassDescription();
+  void setResolveAttachmentReference(const VkAttachmentReference &ref) {
+    m_ResolvedAttachmentReference = ref;
+  }
 
-		[[nodiscard]] auto GetSubPassDescription() const {
-			return m_SubPassDescription;
-		}
-	};
-	SubPass::SubPass() {
+  [[nodiscard]] auto GetSubPassDescription() const {
+    return m_SubPassDescription;
+  }
+};
+SubPass::SubPass() {}
 
-	}
+SubPass::~SubPass() {}
 
-	SubPass::~SubPass() {
+ 
 
-	}
+void SubPass::BuildSubPassDescription() {
+  if (m_ColorAttachmentReferences.empty()) {
+    throw std::runtime_error("Error: color attachment group is empty!");
+  }
+  m_SubPassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-	void SubPass::AddColorAttachmentReference(const VkAttachmentReference& ref) {
-		m_ColorAttachmentReferences.push_back(ref);
-	}
+  m_SubPassDescription.colorAttachmentCount =
+      static_cast<uint32_t>(m_ColorAttachmentReferences.size());
+  m_SubPassDescription.pColorAttachments = m_ColorAttachmentReferences.data();
 
-	void SubPass::AddInputAttachmentReference(const VkAttachmentReference& ref) {
-		m_InputAttachmentReferences.push_back(ref);
-	}
-
-	void SubPass::SetDepthStencilAttachmentReference(const VkAttachmentReference& ref) {
-		m_DepthStencilAttachmentReference = ref;
-	}
-
-	void SubPass::BuildSubPassDescription() {
-		if (m_ColorAttachmentReferences.empty()) {
-			throw std::runtime_error("Error: color attachment group is empty!");
-		}
-		m_SubPassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-
-		m_SubPassDescription.colorAttachmentCount = static_cast<uint32_t>(m_ColorAttachmentReferences.size());
-		m_SubPassDescription.pColorAttachments = m_ColorAttachmentReferences.data();
-
-		m_SubPassDescription.inputAttachmentCount = static_cast<uint32_t>(m_InputAttachmentReferences.size());
-		m_SubPassDescription.pInputAttachments = m_InputAttachmentReferences.data();
-
-
-		m_SubPassDescription.pDepthStencilAttachment = m_DepthStencilAttachmentReference.layout == VK_IMAGE_LAYOUT_UNDEFINED ? nullptr : &m_DepthStencilAttachmentReference;
-	}
+  m_SubPassDescription.inputAttachmentCount =
+      static_cast<uint32_t>(m_InputAttachmentReferences.size());
+  m_SubPassDescription.pInputAttachments = m_InputAttachmentReferences.data();
+  m_SubPassDescription.pResolveAttachments = &m_ResolvedAttachmentReference;
 
 
-
+  m_SubPassDescription.pDepthStencilAttachment =
+      m_DepthStencilAttachmentReference.layout == VK_IMAGE_LAYOUT_UNDEFINED
+          ? nullptr
+          : &m_DepthStencilAttachmentReference;
 }
+
+} // namespace VK::Wrapper

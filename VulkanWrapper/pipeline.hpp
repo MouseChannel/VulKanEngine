@@ -48,7 +48,7 @@ public:
 
   void Make_DepthStecil_Info();
 
-  void Make_LayoutCreate_Info(VkDescriptorSetLayout  & layout);
+  void Make_LayoutCreate_Info(VkDescriptorSetLayout &layout);
 
   void SetShaderGroup(const std::vector<Shader::Ptr> &shaderGroup) {
     m_Shaders = shaderGroup;
@@ -125,8 +125,15 @@ void Pipeline::Make_Raster_Info() {
 void Pipeline::Make_MultiSample_Info() {
   m_Multisampling.sType =
       VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+  // m_Multisampling.sampleShadingEnable = VK_FALSE;
+  // m_Multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+  // m_Multisampling.minSampleShading = 1.0f;
+  // m_Multisampling.pSampleMask = nullptr;
+  // m_Multisampling.alphaToCoverageEnable = VK_FALSE;
+  // m_Multisampling.alphaToOneEnable = VK_FALSE;
+
   m_Multisampling.sampleShadingEnable = VK_FALSE;
-  m_Multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+  m_Multisampling.rasterizationSamples = m_Device->getMaxUsableSampleCount();
   m_Multisampling.minSampleShading = 1.0f;
   m_Multisampling.pSampleMask = nullptr;
   m_Multisampling.alphaToCoverageEnable = VK_FALSE;
@@ -167,10 +174,10 @@ void Pipeline::Make_BlendState_Info() {
   m_BlendState.pAttachments = m_BlendAttachment.data();
 }
 
-void Pipeline::Make_LayoutCreate_Info(VkDescriptorSetLayout  &   layout) {
+void Pipeline::Make_LayoutCreate_Info(VkDescriptorSetLayout &layout) {
   m_LayoutState.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   m_LayoutState.setLayoutCount = 1;
-  m_LayoutState.pSetLayouts =  &layout;
+  m_LayoutState.pSetLayouts = &layout;
   m_LayoutState.pushConstantRangeCount = 0;
   m_LayoutState.pPushConstantRanges = nullptr;
 }
@@ -196,7 +203,7 @@ void Pipeline::Build() {
 
     shaderCreateInfos.push_back(shader->Make_Createinfo_in_pipeline());
   }
-     std::cout << "HERE" << std::endl;
+  std::cout << "HERE" << std::endl;
   // 设置视口裁剪
   m_Viewport.viewportCount = static_cast<uint32_t>(m_Viewports.size());
   m_Viewport.pViewports = m_Viewports.data();
@@ -224,11 +231,11 @@ void Pipeline::Build() {
   pipelineCreateInfo.pViewportState = &m_Viewport;
   pipelineCreateInfo.pRasterizationState = &m_Rasterizer;
   pipelineCreateInfo.pMultisampleState = &m_Multisampling;
-  pipelineCreateInfo.pDepthStencilState = nullptr; // TODO: add depth and
+  pipelineCreateInfo.pDepthStencilState =&m_DepthStencilState; 
   // stencil
   pipelineCreateInfo.pColorBlendState = &m_BlendState;
 
-    pipelineCreateInfo.layout = m_Layout;
+  pipelineCreateInfo.layout = m_Layout;
   pipelineCreateInfo.renderPass = m_RenderPass->GetRenderPass();
   pipelineCreateInfo.subpass = 0;
 
@@ -239,7 +246,6 @@ void Pipeline::Build() {
   if (m_Pipeline != VK_NULL_HANDLE) {
     vkDestroyPipeline(m_Device->GetDevice(), m_Pipeline, nullptr);
   }
-
 
   // auto ss = vkCreateGraphicsPipelines(m_Device->GetDevice(), VK_NULL_HANDLE,
   // 1, &pipelineCreateInfo, nullptr, &m_Pipeline);
@@ -255,6 +261,10 @@ void Pipeline::Build() {
 void Pipeline::Make_DepthStecil_Info() {
   m_DepthStencilState.sType =
       VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+
+  m_DepthStencilState.depthTestEnable = VK_TRUE;
+  m_DepthStencilState.depthWriteEnable = VK_TRUE;
+  m_DepthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 }
 
 } // namespace VK::Wrapper

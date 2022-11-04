@@ -16,6 +16,7 @@
 #include "vulkan/vulkan_core.h"
 
 #include "VulkanWrapper/fence.hpp"
+#include "camera.hpp"
 #include "model.hpp"
 #include "texture/texture.hpp"
 #include "uniformManager.hpp"
@@ -52,6 +53,7 @@ private:
   std::vector<Wrapper::Semaphore::Ptr> m_RenderFinishedSemaphores{};
   std::vector<Wrapper::Fence::Ptr> m_Fences{};
   VPMatrices m_VPMatrices;
+  Camera mCamera;
   int m_CurrentFrame{0};
 
 public:
@@ -66,18 +68,45 @@ public:
   void CreateSyncObjects();
   void ReCreateSwapChain();
   void CleanupSwapChain();
+  void WindowUpdate();
+  void OnMouseMove(double xpos, double ypos);
+  void OnKeyDown(CAMERA_MOVE moveDirection);
 
   void Render();
 };
 
+static void cursorPosCallBack(GLFWwindow *window, double xpos, double ypos) {
+  auto pUserData =
+      reinterpret_cast<Application *>(glfwGetWindowUserPointer(window));
+
+  pUserData->OnMouseMove(xpos, ypos);
+}
+
 void Application::InitWindow() {
   m_Window = Wrapper::Window::Create(m_Width, m_Height);
+  glfwSetWindowUserPointer(m_Window->GetWindow(), this);
+
+  glfwSetCursorPosCallback(m_Window->GetWindow(), cursorPosCallBack);
+  
+		mCamera.lookAt(glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		mCamera.update();
+
+		mCamera.setPerpective(45.0f, (float)m_Width / (float)m_Height, 0.1f, 100.0f);
+
+		mCamera.setSpeed(0.05f);
 }
 
 void Application::MainLoop() {
   while (!m_Window->ShouldClose()) {
     m_Window->PollEvent();
-    m_Model->update();
+    // m_Window->ProcessEvent();
+    WindowUpdate();
+    m_VPMatrices.mViewMatrix = mCamera.getViewMatrix();
+    m_VPMatrices.mProjectionMatrix = mCamera.getProjectMatrix();
+    // m_Model->update();
+
+    // m_VPMatrices.mViewMatrix = mCamera.getViewMatrix();
+    // 	m_VPMatrices.mProjectionMatrix = mCamera.getProjectMatrix();
     m_UniformManager->Update(m_VPMatrices, m_Model->getUniform(),
                              m_CurrentFrame);
 
@@ -102,15 +131,16 @@ void Application::InitVulkan() {
   m_Surface = Wrapper::WindowSurface::Create(m_Instance, m_Window);
   m_Device = Wrapper::Device::Create(m_Instance, m_Surface);
   m_Model = Model::Create(m_Device);
-  m_SwapChain = Wrapper::SwapChain::Create(m_Device, m_Window, m_Surface);
+  m_Model->loadModel("D:\\cpp\\vk\\assets\\jqm.obj", m_Device);
+  m_CommandPool = Wrapper::CommandPool::Create(m_Device);
+  m_SwapChain =
+      Wrapper::SwapChain::Create(m_Device, m_Window, m_Surface, m_CommandPool);
   m_RenderPass = Wrapper::RenderPass::Create(m_Device);
   CreateRenderPass();
   m_SwapChain->CreateFrameBuffers(m_RenderPass);
 
   m_Width = m_SwapChain->GetExtent().width;
   m_Height = m_SwapChain->GetExtent().height;
-
-  m_CommandPool = Wrapper::CommandPool::Create(m_Device);
 
   // descriptor ============
   m_UniformManager = Wrapper::UniformManager::Create();
@@ -135,9 +165,20 @@ void Application::CreateCommandBuffer() {
     renderBeginInfo.framebuffer = m_SwapChain->GetFrameBuffer(i);
     renderBeginInfo.renderArea.offset = {0, 0};
     renderBeginInfo.renderArea.extent = m_SwapChain->GetExtent();
-    VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
-    renderBeginInfo.clearValueCount = 1;
-    renderBeginInfo.pClearValues = &clearColor;
+    std::vector<VkClearValue> clearColors{};
+    VkClearValue finalClearColor{};
+    finalClearColor.color = {0.0f, 0.0f, 0.0f, 1.0f};
+    clearColors.push_back(finalClearColor);
+
+    VkClearValue mutiClearColor{};
+    mutiClearColor.color = {0.0f, 0.0f, 0.0f, 1.0f};
+    clearColors.push_back(mutiClearColor);
+
+    VkClearValue depthClearColor{};
+    depthClearColor.depthStencil = {1.0f, 0};
+    clearColors.push_back(depthClearColor);
+    renderBeginInfo.clearValueCount = clearColors.size();
+    renderBeginInfo.pClearValues = clearColors.data();
 
     m_CommandBuffers[i]->BeginRenderPass(renderBeginInfo);
 
@@ -171,7 +212,6 @@ void Application::CreateSyncObjects() {
 
 void Application::Render() {
 
- 
   uint32_t imageIndex{0};
 
   // 显示完后点亮m_ImageAvailableSemaphores[m_CurrentFrame]，同时该图片供下一次渲染使用
@@ -295,14 +335,8 @@ void Application::CreatePipeline() {
   m_Pipeline->Make_BlendAttachment_Info();
 
   m_Pipeline->Make_BlendState_Info();
+  m_Pipeline->Make_DepthStecil_Info();
 
-  // m_Pipeline->m_LayoutState.sType =
-  //     VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  // m_Pipeline->m_LayoutState.setLayoutCount = 1;
-  // m_Pipeline->m_LayoutState.pSetLayouts =
-  //     &m_UniformManager->GetDescriptorLayout()->GetLayout();
-  // m_Pipeline->m_LayoutState.pushConstantRangeCount = 0;
-  // m_Pipeline->m_LayoutState.pPushConstantRanges = nullptr;
   auto pipelineLayout = m_UniformManager->GetDescriptorLayout()->GetLayout();
   m_Pipeline->Make_LayoutCreate_Info(pipelineLayout);
   m_Pipeline->Build();
@@ -310,25 +344,61 @@ void Application::CreatePipeline() {
 
 void Application::CreateRenderPass() {
 
-  VkAttachmentDescription attachmentDes{};
-  attachmentDes.format = m_SwapChain->GetFormat();
-  attachmentDes.samples = VK_SAMPLE_COUNT_1_BIT;
-  attachmentDes.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  attachmentDes.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  attachmentDes.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  attachmentDes.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  attachmentDes.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  attachmentDes.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+  VkAttachmentDescription finalAttachmentDes{};
+  finalAttachmentDes.format = m_SwapChain->GetFormat();
+  finalAttachmentDes.samples = VK_SAMPLE_COUNT_1_BIT;
+  finalAttachmentDes.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  finalAttachmentDes.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  finalAttachmentDes.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  finalAttachmentDes.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  finalAttachmentDes.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  finalAttachmentDes.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-  m_RenderPass->AddAttachment(attachmentDes);
+  m_RenderPass->AddAttachment(finalAttachmentDes);
 
-  VkAttachmentReference attachmentRef{};
-  attachmentRef.attachment = 0;
-  attachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  VkAttachmentReference finalAttachmentRef{};
+  finalAttachmentRef.attachment = 0;
+  finalAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  // 采样attachment
+  VkAttachmentDescription MutiAttachmentDes{};
+  MutiAttachmentDes.format = m_SwapChain->GetFormat();
+  MutiAttachmentDes.samples = m_Device->getMaxUsableSampleCount();
+  MutiAttachmentDes.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  MutiAttachmentDes.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  MutiAttachmentDes.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  MutiAttachmentDes.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  MutiAttachmentDes.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  MutiAttachmentDes.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  m_RenderPass->AddAttachment(MutiAttachmentDes);
+  VkAttachmentReference mutiAttachmentRef{};
+  mutiAttachmentRef.attachment = 1;
+  mutiAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  // 深度 attachment
+  VkAttachmentDescription depthAttachmentDes{};
+  depthAttachmentDes.format = Wrapper::Image::findDepthFormat(m_Device);
+  depthAttachmentDes.samples = m_Device->getMaxUsableSampleCount();
+  depthAttachmentDes.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depthAttachmentDes.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depthAttachmentDes.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  depthAttachmentDes.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depthAttachmentDes.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  depthAttachmentDes.finalLayout =
+      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+  m_RenderPass->AddAttachment(depthAttachmentDes);
+  VkAttachmentReference depthAttachmentRef{};
+  depthAttachmentRef.attachment = 2;
+  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
   // 做一个subpass
   Wrapper::SubPass subPass{};
-  subPass.AddColorAttachmentReference(attachmentRef);
+  // colorAttachment = 多重采样图片
+  //  ResolveAttachment，对colorAttachment的每个像素内的采样点做平均值
+  subPass.AddColorAttachmentReference(mutiAttachmentRef);
+  subPass.SetDepthStencilAttachmentReference(depthAttachmentRef);
+  subPass.setResolveAttachmentReference(finalAttachmentRef);
   subPass.BuildSubPassDescription();
 
   m_RenderPass->AddSubPass(subPass);
@@ -361,7 +431,8 @@ void Application::ReCreateSwapChain() {
 
   CleanupSwapChain();
 
-  m_SwapChain = Wrapper::SwapChain::Create(m_Device, m_Window, m_Surface);
+  m_SwapChain =
+      Wrapper::SwapChain::Create(m_Device, m_Window, m_Surface, m_CommandPool);
   m_Width = m_SwapChain->GetExtent().width;
   m_Height = m_SwapChain->GetExtent().height;
 
@@ -388,5 +459,32 @@ void Application::CleanupSwapChain() {
   m_ImageAvailableSemaphores.clear();
   m_RenderFinishedSemaphores.clear();
   m_Fences.clear();
+}
+
+void Application::OnMouseMove(double xpos, double ypos) {
+  std::cout<<xpos<<" "<<ypos<<std::endl;
+  mCamera.onMouseMove(xpos, ypos);
+}
+
+void Application::OnKeyDown(CAMERA_MOVE moveDirection) {
+  mCamera.move(moveDirection);
+}
+void Application::WindowUpdate() {
+
+  if (glfwGetKey(m_Window->GetWindow(), GLFW_KEY_W) == GLFW_PRESS) {
+    OnKeyDown(CAMERA_MOVE::MOVE_FRONT);
+  }
+
+  if (glfwGetKey(m_Window->GetWindow(), GLFW_KEY_S) == GLFW_PRESS) {
+    OnKeyDown(CAMERA_MOVE::MOVE_BACK);
+  }
+
+  if (glfwGetKey(m_Window->GetWindow(), GLFW_KEY_A) == GLFW_PRESS) {
+    OnKeyDown(CAMERA_MOVE::MOVE_LEFT);
+  }
+
+  if (glfwGetKey(m_Window->GetWindow(), GLFW_KEY_D) == GLFW_PRESS) {
+    OnKeyDown(CAMERA_MOVE::MOVE_RIGHT);
+  }
 }
 } // namespace VK
