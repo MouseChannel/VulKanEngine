@@ -31,4 +31,4 @@ GraphicQueue和PresentQueue里面存的都是录制好的commandBuffer
 
 此时frameBuffer用于渲染和显示的同步已经完成。但是
 
-这里的commandBuffer是传引用，当被 `vkQueueSubmit`送到GPU执行渲染任务的时候，如果此时再次将该commandBuffer再次通过 `vkQueueSubmit`提交，会出错，执行中的commandBuffer无法再次被提交。因此需要对每个commandBuffer的提交做同步
+这里的commandBuffer是传引用，当被 `vkQueueSubmit`送到GPU执行渲染任务的时候，如果此时再次将该commandBuffer再次通过 `vkQueueSubmit`提交，会出错，执行中的commandBuffer无法再次被提交。因此需要对每个commandBuffer的提交做同步，等待该commandBuffer执行完，才可以再次被提交

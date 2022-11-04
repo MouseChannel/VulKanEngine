@@ -14,9 +14,9 @@ private:
   std::vector<SubPass> mSubPasses{};
   std::vector<VkSubpassDependency> mDependencies{};
 
-//description 表示某一个attachment的格式
+  // description 表示某一个attachment的格式
   std::vector<VkAttachmentDescription> mAttachmentDescriptions{};
-//TODO
+ 
   Device::Ptr mDevice{nullptr};
 
 public:

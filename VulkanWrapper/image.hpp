@@ -181,6 +181,7 @@ void Image::SetImageLayout(VkImageLayout newLayout,
   imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   imageMemoryBarrier.image = m_Image;
   imageMemoryBarrier.subresourceRange = subresrouceRange;
+  
 
   switch (m_Layout) {
     // 说明图片刚被创建，上方是初始化的虚拟操作

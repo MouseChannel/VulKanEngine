@@ -23,7 +23,7 @@ private:
   Device::Ptr m_Device{nullptr};
   Window::Ptr m_Window{nullptr};
   uint32_t imageCount{0};
- 
+
   std::vector<VkImage> m_SwapChainImages{};
   // image管理器
   std::vector<VkImageView> m_SwapChainImageViews{};
@@ -224,7 +224,7 @@ void SwapChain::CreateFrameBuffers(const RenderPass::Ptr &renderPass) {
   m_SwapChainFrameBuffers.resize(imageCount);
   for (int i = 0; i < imageCount; ++i) {
     // framebuffer 包括一帧所有的数据
-    //数组中的顺序必须要与renderpass的顺序匹配
+    // 数组中的顺序必须要与renderpass的顺序匹配
     std::array<VkImageView, 3> attachments = {
         m_SwapChainImageViews[i], m_MutiSampleImages[i]->GetImageView(),
         m_DepthImages[i]->GetImageView()};
